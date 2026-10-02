@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Pulsador de Concurso - Preguntas y Respuestas</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            title: ['Fredoka', 'sans-serif'],
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Desactivar selección y zoom para evitar demoras en toques rápidos */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    /* Efecto 3D de pulsador hundible */
+    .buzzer-btn {
+      transition: transform 0.05s ease-out, box-shadow 0.05s ease-out;
+      transform: translateY(0);
+    }
+    .buzzer-btn:active, .buzzer-btn.pressed {
+      transform: translateY(14px) scale(0.98);
+    }
+
+    /* Sombra profunda para aspecto de botón físico */
+    .buzzer-red {
+      background: radial-gradient(circle at 35% 30%, #ff5252, #d50000 65%, #8b0000 100%);
+      box-shadow: 0 16px 0 #570000, 0 25px 25px rgba(0, 0, 0, 0.4);
+    }
+    .buzzer-red:active, .buzzer-red.pressed {
+      box-shadow: 0 4px 0 #570000, 0 10px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .buzzer-blue {
+      background: radial-gradient(circle at 35% 30%, #448aff, #2962ff 65%, #0d47a1 100%);
+      box-shadow: 0 16px 0 #08285c, 0 25px 25px rgba(0, 0, 0, 0.4);
+    }
+    .buzzer-blue:active, .buzzer-blue.pressed {
+      box-shadow: 0 4px 0 #08285c, 0 10px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.08); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .ring-active {
+      animation: pulse-ring 1.5s infinite;
+    }
+  </style>
+</head>
+<body class="h-full bg-slate-950 text-white font-sans antialiased overflow-hidden flex flex-col justify-between">
+
+  <header class="w-full px-5 py-3 bg-slate-900/80 backdrop-blur border-b border-slate-800 flex items-center justify-between z-20">
+    <div class="flex items-center gap-2">
+      <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
+      <span class="font-title font-bold text-xl tracking-wider text-slate-100">QUIZ BUZZER</span>
+    </div>
+    
+    <div class="flex items-center gap-2">
+      <button id="btnSoundSelect" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1">
+        <span>🔊 Sonidos</span>
+      </button>
+      <button id="btnSwitchTeam" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold rounded-lg shadow transition">
+        🔄 Cambiar Modo
+      </button>
+    </div>
+  </header>
+
+  <section id="selectionView" class="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-lg mx-auto w-full z-10">
+    <div class="mb-8">
+      <span class="px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-full text-xs font-bold tracking-widest uppercase">
+        Concurso de Preguntas
+      </span>
+      <h1 class="font-title text-4xl sm:text-5xl font-extrabold mt-3 text-white">
+        Elige tu Equipo
+      </h1>
+      <p class="text-slate-400 text-sm mt-2">
+        Selecciona el equipo asignado a este teléfono o abre el modo duelo compartido.
+      </p>
+    </div>
+
+    <!-- Opciones de Selección -->
+    <div class="w-full space-y-4">
+      <button id="selectTeamA" class="w-full p-5 rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 border border-red-400/30 shadow-lg shadow-red-950/50 flex items-center justify-between group active:scale-95 transition">
+        <div class="text-left">
+          <span class="text-xs font-bold text-red-200 tracking-wider uppercase">Pulsador A</span>
+          <h2 class="text-2xl font-title font-bold text-white">EQUIPO ROJO (A)</h2>
+          <p class="text-xs text-red-100/80 mt-0.5">Tono: Chicharra eléctrica de concurso</p>
+        </div>
+        <div class="w-12 h-12 rounded-full bg-red-900/40 flex items-center justify-center text-2xl group-hover:scale-110 transition">
+          ⚡
+        </div>
+      </button>
+
+      <button id="selectTeamB" class="w-full p-5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 border border-blue-400/30 shadow-lg shadow-blue-950/50 flex items-center justify-between group active:scale-95 transition">
+        <div class="text-left">
+          <span class="text-xs font-bold text-blue-200 tracking-wider uppercase">Pulsador B</span>
+          <h2 class="text-2xl font-title font-bold text-white">EQUIPO AZUL (B)</h2>
+          <p class="text-xs text-blue-100/80 mt-0.5">Tono: Campana digital aguda</p>
+        </div>
+        <div class="w-12 h-12 rounded-full bg-blue-900/40 flex items-center justify-center text-2xl group-hover:scale-110 transition">
+          🔔
+        </div>
+      </button>
+
+      <button id="selectDualMode" class="w-full p-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 flex items-center justify-center gap-2 text-sm font-semibold active:scale-95 transition">
+        <span>⚔️ Modo Duelo 2 Jugadores (En la misma pantalla)</span>
+      </button>
+    </div>
+  </section>
+
+  <main id="singleBuzzerView" class="hidden flex-1 flex flex-col items-center justify-center p-6 relative select-none">
+    <!-- Indicador de cabecera -->
+    <div class="absolute top-4 text-center">
+      <div id="teamTag" class="inline-block px-4 py-1.5 rounded-full text-sm font-title font-extrabold uppercase tracking-widest shadow-md">
+        EQUIPO A
+      </div>
+      <p id="soundInfoText" class="text-slate-400 text-xs mt-1.5 font-medium">Sonido activo: Chicharra</p>
+    </div>
+
+    <!-- Pulsador circular gigante -->
+    <div class="relative flex items-center justify-center my-auto">
+      <!-- Aro de fondo decorativo -->
+      <div id="buzzerHalo" class="absolute w-72 h-72 sm:w-84 sm:h-84 rounded-full opacity-20 pointer-events-none"></div>
+
+      <!-- Botón central táctil -->
+      <button id="mainBuzzerBtn" class="buzzer-btn w-64 h-64 sm:w-72 sm:h-72 rounded-full flex flex-col items-center justify-center cursor-pointer border-4 border-white/20 select-none outline-none focus:outline-none">
+        <span class="text-4xl sm:text-5xl pointer-events-none" id="buzzerIcon">🚨</span>
+        <span class="font-title text-3xl sm:text-4xl font-extrabold text-white mt-2 tracking-wider pointer-events-none" id="buzzerLabel">¡PRESIONA!</span>
+        <span class="text-xs uppercase tracking-widest text-white/70 font-semibold mt-1 pointer-events-none">Respuesta Instantánea</span>
+      </button>
+    </div>
+
+    <!-- Contador / Registro de pulsaciones -->
+    <div class="absolute bottom-6 flex flex-col items-center gap-1">
+      <div class="text-xs text-slate-400 font-mono tracking-wider">
+        Última activación: <span id="lastTime" class="text-white font-bold">Listo</span>
+      </div>
+      <div class="text-[11px] text-slate-500">
+        Latencia cero activada • Web Audio API
+      </div>
+    </div>
+  </main>
+
+  <main id="dualBuzzerView" class="hidden flex-1 grid grid-cols-1 md:grid-cols-2 h-full w-full gap-2 p-3">
+    <!-- Mitad Equipo A -->
+    <div class="h-full rounded-2xl bg-gradient-to-b from-red-950/30 to-red-900/10 border-2 border-red-900/40 p-4 flex flex-col items-center justify-center relative overflow-hidden">
+      <div class="absolute top-3 left-4 text-red-400 font-title font-bold text-lg">EQUIPO A</div>
+      <button id="dualBuzzerA" class="buzzer-btn buzzer-red w-44 h-44 sm:w-56 sm:h-56 rounded-full flex flex-col items-center justify-center border-4 border-red-300/30">
+        <span class="text-3xl">⚡</span>
+        <span class="font-title text-2xl font-bold mt-1 text-white">ROJO</span>
+      </button>
+      <div id="statusA" class="mt-4 font-mono text-xs text-red-300/70 font-semibold">Listo</div>
+    </div>
+
+    <!-- Mitad Equipo B -->
+    <div class="h-full rounded-2xl bg-gradient-to-b from-blue-950/30 to-blue-900/10 border-2 border-blue-900/40 p-4 flex flex-col items-center justify-center relative overflow-hidden">
+      <div class="absolute top-3 left-4 text-blue-400 font-title font-bold text-lg">EQUIPO B</div>
+      <button id="dualBuzzerB" class="buzzer-btn buzzer-blue w-44 h-44 sm:w-56 sm:h-56 rounded-full flex flex-col items-center justify-center border-4 border-blue-300/30">
+        <span class="text-3xl">🔔</span>
+        <span class="font-title text-2xl font-bold mt-1 text-white">AZUL</span>
+      </button>
+      <div id="statusB" class="mt-4 font-mono text-xs text-blue-300/70 font-semibold">Listo</div>
+    </div>
+  </main>
+
+  <div id="soundModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="font-title text-xl font-bold text-white">Sonidos Disponibles</h3>
+        <button id="closeModal" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+      </div>
+
+      <div class="py-4 space-y-3">
+        <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Sonido Equipo A:</div>
+        <select id="soundPresetA" class="w-full bg-slate-800 text-white rounded-lg p-2.5 border border-slate-700 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+          <option value="buzzer" selected>🚨 Chicharra Clásica TV (Buzzer)</option>
+          <option value="arcade">👾 Rayo Láser / Arcade</option>
+          <option value="horn">🎺 Bocina Grave de Estadio</option>
+          <option value="cat">🐱 Maullido Sintético Corto</option>
+        </select>
+
+        <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider pt-2">Sonido Equipo B:</div>
+        <select id="soundPresetB" class="w-full bg-slate-800 text-white rounded-lg p-2.5 border border-slate-700 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+          <option value="bell" selected>🔔 Campana Cristalina Aguda</option>
+          <option value="spring">🌀 Resorte / Boing de Caricatura</option>
+          <option value="dog">🐶 Ladrido Sintético Corto (Bark)</option>
+          <option value="coin">🪙 Moneda Arcade Retro</option>
+        </select>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button id="testAudioA" class="flex-1 py-2 bg-red-600/30 hover:bg-red-600/50 text-red-200 border border-red-500/40 text-xs font-bold rounded-lg transition">
+          Probar A
+        </button>
+        <button id="testAudioB" class="flex-1 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 text-xs font-bold rounded-lg transition">
+          Probar B
+        </button>
+      </div>
+
+      <button id="confirmSoundBtn" class="w-full mt-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl shadow transition">
+        Guardar Configuración
+      </button>
+    </div>
+  </div>
+
+  <script>
+    /*
+     * Web Audio API Engine
+     * Generación directa mediante osciladores matemáticos.
+     * Garantiza 0 milisegundos de retardo de red o buffering.
+     */
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    // Colección de sintetizadores de sonido corto y distintivo
+    const soundSynthesizers = {
+      // 1. Chicharra clásica de concurso (dura ~300ms, rugosa con onda sierra)
+      buzzer: (ctx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(110, ctx.currentTime + 0.35);
+
+        gain.gain.setValueAtTime(0.8, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.36);
+      },
+
+      // 2. Campana cristalina de concurso (dura ~400ms, limpia y brillante)
+      bell: (ctx) => {
+        const freqs = [880, 1760]; // Notas agudas armónicas
+        freqs.forEach(freq => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+          gain.gain.setValueAtTime(0.5, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.46);
+        });
+      },
+
+      // 3. Rayo Láser / Efecto Arcade rápido
+      arcade: (ctx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(950, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.25);
+
+        gain.gain.setValueAtTime(0.7, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.26);
+      },
+
+      // 4. Bocina grave deportiva
+      horn: (ctx) => {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc1.type = 'sawtooth';
+        osc2.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(160, ctx.currentTime);
+        osc2.frequency.setValueAtTime(164, ctx.currentTime); // Ligero desafine para efecto coro potente
+
+        gain.gain.setValueAtTime(0.7, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+        osc1.start();
+        osc2.start();
+        osc1.stop(ctx.currentTime + 0.42);
+        osc2.stop(ctx.currentTime + 0.42);
+      },
+
+      // 5. Moneda retro aguda (Estilo Coin)
+      coin: (ctx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(987.77, ctx.currentTime); // B5
+        osc.frequency.setValueAtTime(1318.51, ctx.currentTime + 0.08); // E6
+
+        gain.gain.setValueAtTime(0.5, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.36);
+      },
+
+      // 6. Resorte / Boing rápido
+      spring: (ctx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(200, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.15);
+        osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.3);
+
+        gain.gain.setValueAtTime(0.6, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.33);
+      },
+
+      // 7. Ladrido corto sintetizado (Dog 'Woof')
+      dog: (ctx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(280, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(90, ctx.currentTime + 0.18);
+
+        gain.gain.setValueAtTime(0.8, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.21);
+      },
+
+      // 8. Maullido corto sintético (Cat 'Meow')
+      cat: (ctx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(450, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(750, ctx.currentTime + 0.12);
+        osc.frequency.linearRampToValueAtTime(350, ctx.currentTime + 0.28);
+
+        gain.gain.setValueAtTime(0.6, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.31);
+      }
+    };
+
+    const state = {
+      mode: 'selection', // 'selection' | 'single' | 'dual'
+      currentTeam: 'A',  // 'A' | 'B'
+      soundA: 'buzzer',
+      soundB: 'bell'
+    };
+
+    function triggerSound(team) {
+      try {
+        const ctx = getAudioContext();
+        const soundKey = team === 'A' ? state.soundA : state.soundB;
+        if (soundSynthesizers[soundKey]) {
+          soundSynthesizers[soundKey](ctx);
+        }
+
+        // Haptic feedback (Vibración en móviles con hardware compatible)
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate(70);
+        }
+      } catch (err) {
+        console.error("Audio error:", err);
+      }
+    }
+
+    const selectionView = document.getElementById('selectionView');
+    const singleBuzzerView = document.getElementById('singleBuzzerView');
+    const dualBuzzerView = document.getElementById('dualBuzzerView');
+
+    const selectTeamA = document.getElementById('selectTeamA');
+    const selectTeamB = document.getElementById('selectTeamB');
+    const selectDualMode = document.getElementById('selectDualMode');
+    const btnSwitchTeam = document.getElementById('btnSwitchTeam');
+
+    const mainBuzzerBtn = document.getElementById('mainBuzzerBtn');
+    const teamTag = document.getElementById('teamTag');
+    const buzzerHalo = document.getElementById('buzzerHalo');
+    const buzzerIcon = document.getElementById('buzzerIcon');
+    const soundInfoText = document.getElementById('soundInfoText');
+    const lastTime = document.getElementById('lastTime');
+
+    const dualBuzzerA = document.getElementById('dualBuzzerA');
+    const dualBuzzerB = document.getElementById('dualBuzzerB');
+    const statusA = document.getElementById('statusA');
+    const statusB = document.getElementById('statusB');
+
+    const soundModal = document.getElementById('soundModal');
+    const btnSoundSelect = document.getElementById('btnSoundSelect');
+    const closeModal = document.getElementById('closeModal');
+    const confirmSoundBtn = document.getElementById('confirmSoundBtn');
+    const soundPresetA = document.getElementById('soundPresetA');
+    const soundPresetB = document.getElementById('soundPresetB');
+    const testAudioA = document.getElementById('testAudioA');
+    const testAudioB = document.getElementById('testAudioB');
+
+    function setupSingleTeam(team) {
+      state.mode = 'single';
+      state.currentTeam = team;
+      selectionView.classList.add('hidden');
+      dualBuzzerView.classList.add('hidden');
+      singleBuzzerView.classList.remove('hidden');
+
+      // Limpiar clases previas
+      mainBuzzerBtn.classList.remove('buzzer-red', 'buzzer-blue');
+
+      if (team === 'A') {
+        mainBuzzerBtn.classList.add('buzzer-red');
+        teamTag.textContent = 'EQUIPO ROJO (A)';
+        teamTag.className = 'inline-block px-4 py-1.5 rounded-full text-sm font-title font-extrabold uppercase tracking-widest bg-red-600/30 text-red-300 border border-red-500/40 shadow-lg';
+        buzzerHalo.className = 'absolute w-72 h-72 sm:w-84 sm:h-84 rounded-full bg-red-500 opacity-25 ring-active pointer-events-none';
+        buzzerIcon.textContent = '⚡';
+        soundInfoText.textContent = `Sonido asignado: ${soundPresetA.options[soundPresetA.selectedIndex].text.split(' ')[1] || 'Chicharra'}`;
+      } else {
+        mainBuzzerBtn.classList.add('buzzer-blue');
+        teamTag.textContent = 'EQUIPO AZUL (B)';
+        teamTag.className = 'inline-block px-4 py-1.5 rounded-full text-sm font-title font-extrabold uppercase tracking-widest bg-blue-600/30 text-blue-300 border border-blue-500/40 shadow-lg';
+        buzzerHalo.className = 'absolute w-72 h-72 sm:w-84 sm:h-84 rounded-full bg-blue-500 opacity-25 ring-active pointer-events-none';
+        buzzerIcon.textContent = '🔔';
+        soundInfoText.textContent = `Sonido asignado: ${soundPresetB.options[soundPresetB.selectedIndex].text.split(' ')[1] || 'Campana'}`;
+      }
+    }
+
+    function setupDualMode() {
+      state.mode = 'dual';
+      selectionView.classList.add('hidden');
+      singleBuzzerView.classList.add('hidden');
+      dualBuzzerView.classList.remove('hidden');
+      statusA.textContent = 'Listo para pulsar';
+      statusB.textContent = 'Listo para pulsar';
+    }
+
+    function returnToSelection() {
+      state.mode = 'selection';
+      singleBuzzerView.classList.add('hidden');
+      dualBuzzerView.classList.add('hidden');
+      selectionView.classList.remove('hidden');
+    }
+
+    // Usamos 'pointerdown' para ejecutar antes de que el navegador procese el clic
+    function attachFastPress(element, callback) {
+      element.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        callback();
+      }, { passive: false });
+
+      // Compatibilidad con teclado (Barra espaciadora o Enter)
+      element.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault();
+          callback();
+        }
+      });
+    }
+
+    // Pulsador individual
+    attachFastPress(mainBuzzerBtn, () => {
+      triggerSound(state.currentTeam);
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+      lastTime.textContent = timeStr;
+
+      // Efecto visual rápido
+      mainBuzzerBtn.classList.add('pressed');
+      setTimeout(() => mainBuzzerBtn.classList.remove('pressed'), 100);
+    });
+
+    // Pulsadores Duelo Local
+    let dualLock = false;
+    attachFastPress(dualBuzzerA, () => {
+      if (dualLock) return;
+      dualLock = true;
+      triggerSound('A');
+      statusA.innerHTML = '<span class="text-amber-400 font-bold text-sm">👑 ¡PRIMERO EN RESPONDER!</span>';
+      statusB.textContent = 'Bloqueado';
+      setTimeout(() => {
+        dualLock = false;
+        statusA.textContent = 'Listo';
+        statusB.textContent = 'Listo';
+      }, 1500);
+    });
+
+    attachFastPress(dualBuzzerB, () => {
+      if (dualLock) return;
+      dualLock = true;
+      triggerSound('B');
+      statusB.innerHTML = '<span class="text-amber-400 font-bold text-sm">👑 ¡PRIMERO EN RESPONDER!</span>';
+      statusA.textContent = 'Bloqueado';
+      setTimeout(() => {
+        dualLock = false;
+        statusA.textContent = 'Listo';
+        statusB.textContent = 'Listo';
+      }, 1500);
+    });
+
+    selectTeamA.addEventListener('click', () => {
+      getAudioContext(); // Inicializar contexto de audio en primer gesto
+      setupSingleTeam('A');
+    });
+
+    selectTeamB.addEventListener('click', () => {
+      getAudioContext();
+      setupSingleTeam('B');
+    });
+
+    selectDualMode.addEventListener('click', () => {
+      getAudioContext();
+      setupDualMode();
+    });
+
+    btnSwitchTeam.addEventListener('click', () => {
+      returnToSelection();
+    });
+
+    // Configuración de modal de sonidos
+    btnSoundSelect.addEventListener('click', () => {
+      soundModal.classList.remove('hidden');
+    });
+
+    closeModal.addEventListener('click', () => {
+      soundModal.classList.add('hidden');
+    });
+
+    testAudioA.addEventListener('click', () => {
+      state.soundA = soundPresetA.value;
+      triggerSound('A');
+    });
+
+    testAudioB.addEventListener('click', () => {
+      state.soundB = soundPresetB.value;
+      triggerSound('B');
+    });
+
+    confirmSoundBtn.addEventListener('click', () => {
+      state.soundA = soundPresetA.value;
+      state.soundB = soundPresetB.value;
+      soundModal.classList.add('hidden');
+      if (state.mode === 'single') {
+        setupSingleTeam(state.currentTeam);
+      }
+    });
+
+    // Prevenir menú contextual en pulsaciones largas
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
+  </script>
+</body>
+</html>
