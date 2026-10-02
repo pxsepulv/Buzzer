@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   
-  <!-- PeerJS para conexión directa P2P WebRTC sin configuración en GitHub Pages -->
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <!-- Cliente WebSocket MQTT de latencia ultra baja para sincronizar teléfonos en GitHub Pages -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.3.5/mqtt.min.js"></script>
 
   <!-- Firebase SDK para sincronización en tiempo real en la nube -->
   <script type="module">
@@ -153,15 +153,18 @@
   </section>
 
   <!-- Barra de estado online visible durante el juego en 2 dispositivos -->
-  <div id="onlineStatusBar" class="hidden bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between text-xs z-30">
+  <div id="onlineStatusBar" class="hidden bg-slate-900 border-b border-slate-800 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs z-30 sticky top-[53px]">
     <div class="flex items-center gap-2">
-      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-      <span class="text-slate-300 font-mono">SALA: <strong id="onlineRoomBadge" class="text-amber-400">----</strong></span>
+      <span id="onlineNetDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span class="text-slate-300 font-mono text-[11px] sm:text-xs">SALA: <strong id="onlineRoomBadge" class="text-amber-400 font-bold">----</strong></span>
       <span id="onlineRoleBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300">EQUIPO A</span>
+      <span id="onlineRivalBadge" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+        Buscando rival...
+      </span>
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-1.5 ml-auto">
       <button id="btnOnlineReset" class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded font-semibold text-[11px] transition">
-        🔄 Reiniciar Pregunta
+        🔄 Nueva Pregunta
       </button>
       <button id="btnDisconnectOnline" class="px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 rounded text-[11px] transition">
         Salir
@@ -171,7 +174,7 @@
 
   <!-- Modal de Configuración de Sala Online -->
   <div id="onlineRoomModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl p-5 sm:p-6 shadow-2xl">
       <div class="flex items-center justify-between pb-3 border-b border-slate-800">
         <h3 class="font-title text-xl font-bold text-white flex items-center gap-2">
           <span>🌐</span> Duelo en 2 Dispositivos
@@ -179,13 +182,18 @@
         <button id="closeOnlineModal" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
       </div>
 
-      <p class="text-xs text-slate-400 mt-3 leading-relaxed">
-        Usa el mismo <strong>Código de Sala</strong> en ambos teléfonos. El primero que presione su botón bloqueará al otro y activará el sonido en tiempo real.
-      </p>
+      <div class="bg-indigo-950/40 border border-indigo-500/30 rounded-xl p-3 mt-3 text-xs text-indigo-200 space-y-1">
+        <p class="font-bold text-indigo-100 flex items-center gap-1">
+          <span>💡</span> ¿Cómo se conectan?
+        </p>
+        <p>1. En el <strong>Teléfono 1</strong>: Escribe un código (ej: <strong>1234</strong>) y selecciona <strong>Equipo Rojo</strong>.</p>
+        <p>2. En el <strong>Teléfono 2</strong>: Escribe el <strong>mismo código</strong> (<strong>1234</strong>) y selecciona <strong>Equipo Azul</strong>.</p>
+        <p class="text-[11px] text-indigo-300 pt-0.5">¡El primero que pulse bloqueará automáticamente la pantalla del otro!</p>
+      </div>
 
       <div class="mt-4 space-y-4">
         <div>
-          <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider block mb-1">Código de Sala (4 dígitos o palabra)</label>
+          <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider block mb-1">Código de Sala (Ambos teléfonos deben tener el mismo)</label>
           <div class="flex gap-2">
             <input type="text" id="roomCodeInput" maxlength="8" placeholder="Ej: 1234" class="w-full bg-slate-800 text-white font-mono text-center text-lg uppercase tracking-widest font-bold rounded-lg p-2.5 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none">
             <button id="btnRandomRoom" class="px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700 font-semibold">
@@ -207,7 +215,7 @@
         </div>
 
         <button type="button" id="btnConnectRoom" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-title font-bold text-sm rounded-xl shadow-lg active:scale-98 transition">
-          🚀 Conectar Sala
+          🚀 Conectar e Iniciar Duelo
         </button>
 
         <p id="onlineStatusMsg" class="text-center text-xs font-mono text-slate-400 min-h-[1.25rem]"></p>
@@ -823,8 +831,9 @@
       myTeam: 'A',
       isLocked: false,
       winner: null,
-      peer: null,
-      peerConn: null,
+      mqttClient: null,
+      heartbeatTimer: null,
+      rivalDetected: false,
       firestoreUnsub: null,
       usingFirebase: false
     };
@@ -886,8 +895,10 @@
     const btnConnectRoom = document.getElementById('btnConnectRoom');
     const onlineStatusMsg = document.getElementById('onlineStatusMsg');
     const onlineStatusBar = document.getElementById('onlineStatusBar');
+    const onlineNetDot = document.getElementById('onlineNetDot');
     const onlineRoomBadge = document.getElementById('onlineRoomBadge');
     const onlineRoleBadge = document.getElementById('onlineRoleBadge');
+    const onlineRivalBadge = document.getElementById('onlineRivalBadge');
     const btnOnlineReset = document.getElementById('btnOnlineReset');
     const btnDisconnectOnline = document.getElementById('btnDisconnectOnline');
     const duelLockOverlay = document.getElementById('duelLockOverlay');
@@ -929,12 +940,40 @@
     function handleRoomEvent(data) {
       if (!data) return;
 
+      // 1. Detección de presencia / rival conectado
+      if (data.type === 'PING') {
+        if (data.team !== onlineState.myTeam) {
+          onlineState.rivalDetected = true;
+          if (onlineRivalBadge) {
+            onlineRivalBadge.textContent = `🟢 Rival listo (${data.team === 'A' ? 'Rojo' : 'Azul'})`;
+            onlineRivalBadge.className = 'px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          }
+          // Responder de vuelta con PONG para que el rival también nos marque en verde
+          if (data.reply !== false) {
+            broadcastOnlineMessage({ type: 'PONG', team: onlineState.myTeam, reply: false });
+          }
+        }
+        return;
+      }
+
+      if (data.type === 'PONG') {
+        if (data.team !== onlineState.myTeam) {
+          onlineState.rivalDetected = true;
+          if (onlineRivalBadge) {
+            onlineRivalBadge.textContent = `🟢 Rival listo (${data.team === 'A' ? 'Rojo' : 'Azul'})`;
+            onlineRivalBadge.className = 'px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          }
+        }
+        return;
+      }
+
+      // 2. Evento de pulsador (BUZZ)
       if (data.type === 'BUZZ') {
         const winnerTeam = data.team;
         onlineState.isLocked = true;
         onlineState.winner = winnerTeam;
 
-        // Disparar sonido del equipo ganador
+        // Disparar sonido correspondiente
         triggerSound(winnerTeam);
 
         if (winnerTeam === onlineState.myTeam) {
@@ -942,21 +981,33 @@
           duelLockOverlay.classList.remove('hidden');
           duelLockTitle.textContent = '👑 ¡FUISTE EL MÁS RÁPIDO!';
           duelLockTitle.className = 'font-title text-2xl sm:text-3xl font-extrabold text-emerald-400';
-          duelLockSubtitle.textContent = 'Pulsaste primero. El rival está bloqueado.';
-          duelLockDetail.textContent = `Tiempo de respuesta registrado: ${new Date().toLocaleTimeString()}`;
+          duelLockSubtitle.textContent = 'Tu pulsador entró primero. El rival ha sido bloqueado.';
+          duelLockDetail.textContent = `Registrado: ${new Date().toLocaleTimeString()}`;
         } else {
           // El rival fue más rápido
           duelLockOverlay.classList.remove('hidden');
           duelLockTitle.textContent = '🔒 ¡EL RIVAL FUE MÁS RÁPIDO!';
           duelLockTitle.className = 'font-title text-2xl sm:text-3xl font-extrabold text-red-400';
-          duelLockSubtitle.textContent = `El Equipo ${winnerTeam} presionó antes.`;
-          duelLockDetail.textContent = 'Tu pulsador está bloqueado hasta la siguiente pregunta.';
+          duelLockSubtitle.textContent = `El Equipo ${winnerTeam === 'A' ? 'Rojo' : 'Azul'} presionó antes.`;
+          duelLockDetail.textContent = 'Pulsador bloqueado hasta la siguiente pregunta.';
         }
       } else if (data.type === 'RESET') {
         // Desbloquear para siguiente pregunta
         onlineState.isLocked = false;
         onlineState.winner = null;
         duelLockOverlay.classList.add('hidden');
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate(30);
+        }
+      }
+    }
+
+    function broadcastOnlineMessage(payload) {
+      if (onlineState.usingFirebase) {
+        if (window.syncFirebaseRoom) window.syncFirebaseRoom(payload);
+      } else if (onlineState.mqttClient && onlineState.mqttClient.connected) {
+        const topic = `quizbuzzer/rooms/${onlineState.roomId}`;
+        onlineState.mqttClient.publish(topic, JSON.stringify(payload), { qos: 1 });
       }
     }
 
@@ -969,12 +1020,12 @@
         timestamp: Date.now()
       };
 
-      if (onlineState.usingFirebase) {
-        syncFirebaseRoom(payload);
-      } else if (onlineState.peerConn && onlineState.peerConn.open) {
-        onlineState.peerConn.send(payload);
-        handleRoomEvent(payload);
+      // Si aún no hay conexión establecida, reproducir sonido local de inmediato
+      if (!onlineState.connected) {
+        triggerSound(onlineState.myTeam);
       }
+
+      broadcastOnlineMessage(payload);
     }
 
     function emitOnlineReset() {
@@ -983,12 +1034,7 @@
         timestamp: Date.now()
       };
 
-      if (onlineState.usingFirebase) {
-        syncFirebaseRoom(payload);
-      } else if (onlineState.peerConn && onlineState.peerConn.open) {
-        onlineState.peerConn.send(payload);
-        handleRoomEvent(payload);
-      }
+      broadcastOnlineMessage(payload);
     }
 
     async function connectToOnlineDuel() {
@@ -1019,6 +1065,7 @@
           }
 
           onlineState.usingFirebase = true;
+          onlineState.connected = true;
           const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'buzzer_rooms', code);
 
           window.syncFirebaseRoom = (data) => {
@@ -1037,56 +1084,86 @@
           startOnlineGame();
           return;
         } catch (fbErr) {
-          console.warn("Fallback to WebRTC PeerJS:", fbErr);
+          console.warn("Fallback to WebSocket MQTT:", fbErr);
         }
       }
 
-      // 2. Modo GitHub Pages / P2P directo con WebRTC (Zero Config & 0 latencia)
+      // 2. WebSocket Relay de alta velocidad (Ideal para GitHub Pages sin servidores)
       try {
         onlineState.usingFirebase = false;
-        const myPeerId = `quizbuzzer-${code}-${onlineState.myTeam}`;
-        const rivalPeerId = `quizbuzzer-${code}-${onlineState.myTeam === 'A' ? 'B' : 'A'}`;
 
-        if (onlineState.peer) onlineState.peer.destroy();
-        onlineState.peer = new Peer(myPeerId);
+        if (onlineState.mqttClient) {
+          try { onlineState.mqttClient.end(true); } catch(e) {}
+        }
 
-        onlineState.peer.on('open', () => {
-          onlineStatusMsg.textContent = 'Buscando al rival en la sala...';
+        // Brokers públicos seguros por WebSocket SSL con soporte multiplataforma
+        const brokers = [
+          'wss://broker.hivemq.com:8884/mqtt',
+          'wss://broker.emqx.io:8084/mqtt'
+        ];
+        const selectedBroker = brokers[0];
+
+        onlineStatusMsg.textContent = 'Conectando al servidor en la nube...';
+        
+        const clientId = 'buzzer_' + Math.random().toString(16).substring(2, 10);
+        const client = mqtt.connect(selectedBroker, {
+          clientId: clientId,
+          clean: true,
+          reconnectPeriod: 2500,
+          connectTimeout: 7000
+        });
+
+        onlineState.mqttClient = client;
+
+        client.on('connect', () => {
+          onlineState.connected = true;
+          onlineStatusMsg.textContent = '¡Conectado! Entrando a la sala...';
           
-          // Intentar conectar con el rival
-          const conn = onlineState.peer.connect(rivalPeerId);
-          setupPeerConnection(conn);
-
-          // Escuchar si el rival se conecta hacia nosotros
-          onlineState.peer.on('connection', (incomingConn) => {
-            setupPeerConnection(incomingConn);
+          const topic = `quizbuzzer/rooms/${code}`;
+          client.subscribe(topic, { qos: 1 }, (err) => {
+            if (!err) {
+              // Enviar ping inicial para avisar al otro dispositivo que ya estamos en la sala
+              client.publish(topic, JSON.stringify({ type: 'PING', team: onlineState.myTeam }));
+              
+              // Latido periódico para sincronizar y detectar al rival
+              if (onlineState.heartbeatTimer) clearInterval(onlineState.heartbeatTimer);
+              onlineState.heartbeatTimer = setInterval(() => {
+                if (onlineState.connected) {
+                  client.publish(topic, JSON.stringify({ type: 'PING', team: onlineState.myTeam, reply: false }));
+                }
+              }, 4000);
+            }
           });
 
           startOnlineGame();
         });
 
-        onlineState.peer.on('error', (err) => {
-          if (err.type === 'unavailable-id') {
-            // Ya hay un dispositivo con ese rol en esa sala
-            onlineStatusMsg.textContent = `El rol ${onlineState.myTeam} ya está ocupado en la sala ${code}. Cambia de equipo o usa otro código.`;
-          } else {
-            console.warn("Peer error:", err);
-            startOnlineGame(); // Continuar y esperar reconexión
+        client.on('message', (topic, message) => {
+          try {
+            const data = JSON.parse(message.toString());
+            handleRoomEvent(data);
+          } catch (e) {
+            console.error("Error parseando mensaje online:", e);
           }
         });
-      } catch (err) {
-        onlineStatusMsg.textContent = 'Error al inicializar P2P: ' + err.message;
-      }
-    }
 
-    function setupPeerConnection(conn) {
-      onlineState.peerConn = conn;
-      conn.on('open', () => {
-        onlineStatusMsg.textContent = '¡Dispositivos vinculados!';
-      });
-      conn.on('data', (data) => {
-        handleRoomEvent(data);
-      });
+        client.on('error', (err) => {
+          console.warn("MQTT Error:", err);
+          if (onlineNetDot) onlineNetDot.className = 'w-2.5 h-2.5 rounded-full bg-red-500';
+        });
+
+        client.on('offline', () => {
+          onlineState.connected = false;
+          if (onlineNetDot) onlineNetDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse';
+        });
+
+        client.on('reconnect', () => {
+          if (onlineNetDot) onlineNetDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+        });
+
+      } catch (err) {
+        onlineStatusMsg.textContent = 'Error al conectar: ' + err.message;
+      }
     }
 
     function startOnlineGame() {
@@ -1102,16 +1179,20 @@
     }
 
     function disconnectOnline() {
+      if (onlineState.heartbeatTimer) {
+        clearInterval(onlineState.heartbeatTimer);
+      }
       if (onlineState.firestoreUnsub) {
         onlineState.firestoreUnsub();
       }
-      if (onlineState.peer) {
-        onlineState.peer.destroy();
+      if (onlineState.mqttClient) {
+        try { onlineState.mqttClient.end(true); } catch(e) {}
       }
       onlineStatusBar.classList.add('hidden');
       duelLockOverlay.classList.add('hidden');
       onlineState.connected = false;
       onlineState.isLocked = false;
+      onlineState.rivalDetected = false;
       returnToSelection();
     }
 
