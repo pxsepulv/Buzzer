@@ -106,7 +106,7 @@
         <div class="text-left">
           <span class="text-xs font-bold text-red-200 tracking-wider uppercase">Pulsador A</span>
           <h2 class="text-2xl font-title font-bold text-white">EQUIPO ROJO (A)</h2>
-          <p class="text-xs text-red-100/80 mt-0.5">Tono: Chicharra eléctrica de concurso</p>
+          <p class="text-xs text-red-100/80 mt-0.5">Tono: Chicharra estridente de TV Show</p>
         </div>
         <div class="w-12 h-12 rounded-full bg-red-900/40 flex items-center justify-center text-2xl group-hover:scale-110 transition">
           ⚡
@@ -117,7 +117,7 @@
         <div class="text-left">
           <span class="text-xs font-bold text-blue-200 tracking-wider uppercase">Pulsador B</span>
           <h2 class="text-2xl font-title font-bold text-white">EQUIPO AZUL (B)</h2>
-          <p class="text-xs text-blue-100/80 mt-0.5">Tono: Campana digital aguda</p>
+          <p class="text-xs text-blue-100/80 mt-0.5">Tono: Timbre metálico "Ding" resonante</p>
         </div>
         <div class="w-12 h-12 rounded-full bg-blue-900/40 flex items-center justify-center text-2xl group-hover:scale-110 transition">
           🔔
@@ -195,18 +195,18 @@
       <div class="py-4 space-y-3">
         <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Sonido Equipo A:</div>
         <select id="soundPresetA" class="w-full bg-slate-800 text-white rounded-lg p-2.5 border border-slate-700 text-sm focus:ring-2 focus:ring-red-500 outline-none">
-          <option value="buzzer" selected>🚨 Chicharra Clásica TV (Buzzer)</option>
-          <option value="arcade">👾 Rayo Láser / Arcade</option>
-          <option value="horn">🎺 Bocina Grave de Estadio</option>
-          <option value="cat">🐱 Maullido Sintético Corto</option>
+          <option value="buzzer" selected>🚨 Chicharra Real TV (Grave, estridente y con cuerpo)</option>
+          <option value="airhorn">📯 Bocina de Estadio Potente (Air Horn)</option>
+          <option value="whistle">📢 Silbato de Árbitro (Con trino de aire)</option>
+          <option value="gavel">🔨 Golpe Seco de Madera (Martillo de juez)</option>
         </select>
 
         <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider pt-2">Sonido Equipo B:</div>
         <select id="soundPresetB" class="w-full bg-slate-800 text-white rounded-lg p-2.5 border border-slate-700 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-          <option value="bell" selected>🔔 Campana Cristalina Aguda</option>
-          <option value="spring">🌀 Resorte / Boing de Caricatura</option>
-          <option value="dog">🐶 Ladrido Sintético Corto (Bark)</option>
-          <option value="coin">🪙 Moneda Arcade Retro</option>
+          <option value="bell" selected>🛎️ Timbre Metálico de Recepción (Ding real resonante)</option>
+          <option value="boxing">🥊 Campana de Boxeo (Metal pesado de ring)</option>
+          <option value="correct">✨ Acorde Triunfal de Concurso (3 campanas)</option>
+          <option value="gong">🪘 Gong / Platillo de Impacto</option>
         </select>
       </div>
 
@@ -228,15 +228,44 @@
   <script>
     /*
      * Web Audio API Engine
-     * Generación directa mediante osciladores matemáticos.
-     * Garantiza 0 milisegundos de retardo de red o buffering.
+     * Generación acústica avanzada con masterización, distorsión analógica
+     * y modelado físico de instrumentos reales a latencia cero.
      */
     let audioCtx = null;
+    let masterCompressor = null;
+    let masterGain = null;
+
+    function makeDistortionCurve(amount) {
+      const k = typeof amount === 'number' ? amount : 50;
+      const n_samples = 44100;
+      const curve = new Float32Array(n_samples);
+      const deg = Math.PI / 180;
+      for (let i = 0; i < n_samples; ++i) {
+        const x = (i * 2) / n_samples - 1;
+        curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+      }
+      return curve;
+    }
 
     function getAudioContext() {
       if (!audioCtx) {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         audioCtx = new AudioContext();
+
+        // Compresor/limitador maestro de estudio para lograr máximo volumen sin distorsión digital
+        masterCompressor = audioCtx.createDynamicsCompressor();
+        masterCompressor.threshold.setValueAtTime(-12, audioCtx.currentTime);
+        masterCompressor.knee.setValueAtTime(4, audioCtx.currentTime);
+        masterCompressor.ratio.setValueAtTime(10, audioCtx.currentTime);
+        masterCompressor.attack.setValueAtTime(0.002, audioCtx.currentTime);
+        masterCompressor.release.setValueAtTime(0.12, audioCtx.currentTime);
+
+        // Aumento de ganancia para compensar bocinas de teléfono pequeñas
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(1.4, audioCtx.currentTime);
+
+        masterGain.connect(masterCompressor);
+        masterCompressor.connect(audioCtx.destination);
       }
       if (audioCtx.state === 'suspended') {
         audioCtx.resume();
@@ -244,152 +273,289 @@
       return audioCtx;
     }
 
-    // Colección de sintetizadores de sonido corto y distintivo
     const soundSynthesizers = {
-      // 1. Chicharra clásica de concurso (dura ~300ms, rugosa con onda sierra)
+      // 1. Chicharra Real TV (Show televisivo: zumbido electromagnético rico, áspero y contundente)
       buzzer: (ctx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(140, ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(110, ctx.currentTime + 0.35);
+        const t = ctx.currentTime;
+        const out = masterGain;
 
-        gain.gain.setValueAtTime(0.8, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        // Filtro pasa-banda para concentrar la energía en frecuencias que cortan la mezcla
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(650, t);
+        filter.Q.setValueAtTime(1.8, t);
 
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.36);
+        // Saturador / Overdrive analógico para darle textura metálica
+        const shaper = ctx.createWaveShaper();
+        shaper.curve = makeDistortionCurve(18);
+        shaper.oversample = '2x';
+
+        const mainGain = ctx.createGain();
+        mainGain.gain.setValueAtTime(1.0, t);
+        mainGain.gain.setValueAtTime(0.95, t + 0.35);
+        mainGain.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+
+        // 3 osciladores desafinados que simulan la corriente alterna vibrando en una chapa metálica
+        const freqs = [120, 122.5, 182];
+        freqs.forEach(f => {
+          const osc = ctx.createOscillator();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(f, t);
+          osc.connect(shaper);
+          osc.start(t);
+          osc.stop(t + 0.43);
+        });
+
+        // Sub-grave para impacto corporal
+        const sub = ctx.createOscillator();
+        const subGain = ctx.createGain();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(65, t);
+        subGain.gain.setValueAtTime(0.7, t);
+        subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+        sub.connect(subGain);
+        subGain.connect(out);
+        sub.start(t);
+        sub.stop(t + 0.41);
+
+        shaper.connect(filter);
+        filter.connect(mainGain);
+        mainGain.connect(out);
       },
 
-      // 2. Campana cristalina de concurso (dura ~400ms, limpia y brillante)
+      // 2. Timbre Metálico "Ding" Real (Modelado físico inarmónico de campana de mostrador)
       bell: (ctx) => {
-        const freqs = [880, 1760]; // Notas agudas armónicas
-        freqs.forEach(freq => {
+        const t = ctx.currentTime;
+        const out = masterGain;
+
+        // Frecuencias inarmónicas reales de campana metálica de latón
+        const bellModes = [
+          { freq: 1318.5, gain: 0.65, decay: 0.95 },  // Fundamental E6
+          { freq: 2110,   gain: 0.45, decay: 0.75 },  // Armónico 2
+          { freq: 3380,   gain: 0.30, decay: 0.50 },  // Armónico 3
+          { freq: 4950,   gain: 0.18, decay: 0.35 }   // Brillo agudo metálico
+        ];
+
+        bellModes.forEach(mode => {
           const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
+          const g = ctx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+          osc.frequency.setValueAtTime(mode.freq, t);
 
-          gain.gain.setValueAtTime(0.5, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
+          g.gain.setValueAtTime(mode.gain, t);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + mode.decay);
 
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.46);
+          osc.connect(g);
+          g.connect(out);
+          osc.start(t);
+          osc.stop(t + mode.decay + 0.05);
+        });
+
+        // Golpe mecánico inicial (martillo de metal impactando la campana)
+        const hitOsc = ctx.createOscillator();
+        const hitGain = ctx.createGain();
+        hitOsc.type = 'triangle';
+        hitOsc.frequency.setValueAtTime(800, t);
+        hitOsc.frequency.exponentialRampToValueAtTime(200, t + 0.03);
+
+        hitGain.gain.setValueAtTime(0.8, t);
+        hitGain.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
+
+        hitOsc.connect(hitGain);
+        hitGain.connect(out);
+        hitOsc.start(t);
+        hitOsc.stop(t + 0.04);
+      },
+
+      // 3. Bocina de Estadio Potente (Air Horn con doble tono y armónicos de metal)
+      airhorn: (ctx) => {
+        const t = ctx.currentTime;
+        const out = masterGain;
+
+        const hornGain = ctx.createGain();
+        hornGain.gain.setValueAtTime(0.01, t);
+        hornGain.gain.linearRampToValueAtTime(1.0, t + 0.02);
+        hornGain.gain.setValueAtTime(0.95, t + 0.3);
+        hornGain.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+
+        // Tonos característicos de trompeta de aire de estadio (aprox Eb y Bb)
+        const tones = [311.13, 314.5, 466.16];
+        tones.forEach((f, idx) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'sawtooth';
+          // Ligero barrido ascendente como la acumulación de aire en la trompeta
+          osc.frequency.setValueAtTime(f * 0.94, t);
+          osc.frequency.linearRampToValueAtTime(f, t + 0.04);
+
+          const g = ctx.createGain();
+          g.gain.value = idx === 2 ? 0.6 : 0.8;
+
+          osc.connect(g);
+          g.connect(hornGain);
+          osc.start(t);
+          osc.stop(t + 0.43);
+        });
+
+        hornGain.connect(out);
+      },
+
+      // 4. Silbato de Árbitro con Trino Real (Modulación acústica de dos tonos + soplido de aire)
+      whistle: (ctx) => {
+        const t = ctx.currentTime;
+        const out = masterGain;
+
+        const mainGain = ctx.createGain();
+        mainGain.gain.setValueAtTime(0.01, t);
+        mainGain.gain.linearRampToValueAtTime(0.9, t + 0.03);
+        mainGain.gain.setValueAtTime(0.85, t + 0.32);
+        mainGain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+
+        // LFO que simula la bolita (pea) rodando dentro del silbato a ~28 Hz
+        const lfo = ctx.createOscillator();
+        const lfoGain = ctx.createGain();
+        lfo.frequency.setValueAtTime(28, t);
+        lfoGain.gain.setValueAtTime(180, t);
+
+        // Tonos duales que baten entre sí produciendo el trino estridente
+        [2450, 2760].forEach(f => {
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, t);
+          lfoGain.connect(osc.frequency);
+          osc.connect(mainGain);
+          osc.start(t);
+          osc.stop(t + 0.39);
+        });
+
+        lfo.connect(lfoGain);
+        lfo.start(t);
+        lfo.stop(t + 0.39);
+
+        // Ruido de aire soplado a alta presión
+        const bufferSize = ctx.sampleRate * 0.38;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * 0.12;
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const noiseFilter = ctx.createBiquadFilter();
+        noiseFilter.type = 'bandpass';
+        noiseFilter.frequency.setValueAtTime(2600, t);
+        noiseFilter.Q.setValueAtTime(3.0, t);
+
+        noise.connect(noiseFilter);
+        noiseFilter.connect(mainGain);
+        noise.start(t);
+        noise.stop(t + 0.38);
+
+        mainGain.connect(out);
+      },
+
+      // 5. Campana de Boxeo / Ring de Combate (Metal pesado resonante y percutor)
+      boxing: (ctx) => {
+        const t = ctx.currentTime;
+        const out = masterGain;
+
+        const partials = [
+          { f: 580, g: 0.8, d: 0.9 },
+          { f: 940, g: 0.6, d: 0.7 },
+          { f: 1680, g: 0.45, d: 0.5 },
+          { f: 2800, g: 0.25, d: 0.3 }
+        ];
+
+        partials.forEach(p => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(p.f, t);
+          g.gain.setValueAtTime(p.g, t);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + p.d);
+          osc.connect(g);
+          g.connect(out);
+          osc.start(t);
+          osc.stop(t + p.d + 0.05);
+        });
+
+        // Golpe sordo de mazo
+        const thud = ctx.createOscillator();
+        const thudGain = ctx.createGain();
+        thud.frequency.setValueAtTime(220, t);
+        thud.frequency.exponentialRampToValueAtTime(60, t + 0.06);
+        thudGain.gain.setValueAtTime(0.9, t);
+        thudGain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+        thud.connect(thudGain);
+        thudGain.connect(out);
+        thud.start(t);
+        thud.stop(t + 0.08);
+      },
+
+      // 6. Acorde Triunfal de Concurso (Tres campanas armonizadas C6 - E6 - G6)
+      correct: (ctx) => {
+        const t = ctx.currentTime;
+        const out = masterGain;
+        const notes = [1046.5, 1318.51, 1567.98]; // C6, E6, G6
+
+        notes.forEach((freq, i) => {
+          const delay = i * 0.06;
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, t + delay);
+
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.setValueAtTime(0.65, t + delay);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + delay + 0.65);
+
+          osc.connect(g);
+          g.connect(out);
+          osc.start(t + delay);
+          osc.stop(t + delay + 0.7);
         });
       },
 
-      // 3. Rayo Láser / Efecto Arcade rápido
-      arcade: (ctx) => {
+      // 7. Golpe Seco de Martillo / Madera (Gavel de Juez)
+      gavel: (ctx) => {
+        const t = ctx.currentTime;
+        const out = masterGain;
+
         const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        const g = ctx.createGain();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(950, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.25);
+        osc.frequency.setValueAtTime(320, t);
+        osc.frequency.exponentialRampToValueAtTime(45, t + 0.08);
 
-        gain.gain.setValueAtTime(0.7, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+        g.gain.setValueAtTime(1.0, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
 
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.26);
+        osc.connect(g);
+        g.connect(out);
+        osc.start(t);
+        osc.stop(t + 0.13);
       },
 
-      // 4. Bocina grave deportiva
-      horn: (ctx) => {
-        const osc1 = ctx.createOscillator();
-        const osc2 = ctx.createOscillator();
-        const gain = ctx.createGain();
+      // 8. Gong Metálico de Impacto (Resonancia profunda)
+      gong: (ctx) => {
+        const t = ctx.currentTime;
+        const out = masterGain;
 
-        osc1.type = 'sawtooth';
-        osc2.type = 'sawtooth';
-        osc1.frequency.setValueAtTime(160, ctx.currentTime);
-        osc2.frequency.setValueAtTime(164, ctx.currentTime); // Ligero desafine para efecto coro potente
+        const freqs = [185, 278, 395, 520, 710];
+        freqs.forEach((f, i) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = i % 2 === 0 ? 'sine' : 'triangle';
+          osc.frequency.setValueAtTime(f, t);
 
-        gain.gain.setValueAtTime(0.7, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+          g.gain.setValueAtTime(0.55 / (i + 1), t);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
 
-        osc1.connect(gain);
-        osc2.connect(gain);
-        gain.connect(ctx.destination);
-        osc1.start();
-        osc2.start();
-        osc1.stop(ctx.currentTime + 0.42);
-        osc2.stop(ctx.currentTime + 0.42);
-      },
-
-      // 5. Moneda retro aguda (Estilo Coin)
-      coin: (ctx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(987.77, ctx.currentTime); // B5
-        osc.frequency.setValueAtTime(1318.51, ctx.currentTime + 0.08); // E6
-
-        gain.gain.setValueAtTime(0.5, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.36);
-      },
-
-      // 6. Resorte / Boing rápido
-      spring: (ctx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(200, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.15);
-        osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.3);
-
-        gain.gain.setValueAtTime(0.6, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.33);
-      },
-
-      // 7. Ladrido corto sintetizado (Dog 'Woof')
-      dog: (ctx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(280, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(90, ctx.currentTime + 0.18);
-
-        gain.gain.setValueAtTime(0.8, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.21);
-      },
-
-      // 8. Maullido corto sintético (Cat 'Meow')
-      cat: (ctx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(450, ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(750, ctx.currentTime + 0.12);
-        osc.frequency.linearRampToValueAtTime(350, ctx.currentTime + 0.28);
-
-        gain.gain.setValueAtTime(0.6, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.31);
+          osc.connect(g);
+          g.connect(out);
+          osc.start(t);
+          osc.stop(t + 1.25);
+        });
       }
     };
 
